@@ -1,6 +1,8 @@
-#include "boa.h"
+#include "boa_fns.h"
 
-bool boa::init(GLint version_major, GLint version_minor, GLboolean resizable) {
+namespace boa {
+
+bool init(GLint version_major, GLint version_minor, GLboolean resizable) {
 	// Initialize GLFW
 	glfwInit();
 
@@ -16,7 +18,7 @@ bool boa::init(GLint version_major, GLint version_minor, GLboolean resizable) {
 
 
 // Shaders
-GLuint boa::compile_shader(const char* source, GLenum type) {
+GLuint compile_shader(const char* source, GLenum type) {
 	std::ifstream shader_file;
 	shader_file.open(source, std::ios::in);
 	std::string shader_source;
@@ -48,7 +50,7 @@ GLuint boa::compile_shader(const char* source, GLenum type) {
 	return shader;
 }
 
-GLuint boa::create_program(std::initializer_list<GLuint> shaders) {
+GLuint create_program(std::initializer_list<GLuint> shaders) {
 	GLuint program = glCreateProgram();
 	for(GLuint shader : shaders) {
 		glAttachShader(program, shader);
@@ -60,7 +62,7 @@ GLuint boa::create_program(std::initializer_list<GLuint> shaders) {
 
 
 // Textures
-GLuint boa::load_texture(const char* source) {
+GLuint load_texture(const char* source) {
 	int width, height;
 	unsigned char* image = SOIL_load_image(source, &width, &height, 0, SOIL_LOAD_RGB);
 
@@ -83,14 +85,14 @@ GLuint boa::load_texture(const char* source) {
 	return texture;
 }
 
-void boa::set_texture(GLenum target, GLenum unit, GLuint texture) {
+void set_texture(GLenum target, GLenum unit, GLuint texture) {
 	glActiveTexture(GL_TEXTURE0 + unit);
 	glBindTexture(target, texture);
 }
 
 
 // Windows
-GLFWwindow* boa::create_window(int width, int height, std::string name, GLFWmonitor* monitor, GLFWwindow* share) {
+GLFWwindow* create_window(int width, int height, std::string name, GLFWmonitor* monitor, GLFWwindow* share) {
 	GLFWwindow* window = glfwCreateWindow(width, height, name.c_str(), monitor, share);
 	if(window == nullptr) {
 		ERROR("Failed to create window \"" << name << "\"");
@@ -104,3 +106,5 @@ GLFWwindow* boa::create_window(int width, int height, std::string name, GLFWmoni
 
 	return window;
 }
+
+} // boa

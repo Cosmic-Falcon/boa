@@ -1,18 +1,20 @@
 #include "polygon.h"
 
-boa::Polygon::Polygon(std::vector<glm::vec4> vertices, glm::vec4 pos) :
+namespace boa {
+
+Polygon::Polygon(std::vector<glm::vec4> vertices, glm::vec4 pos) :
 	_verts{vertices} {
 	set_position(pos);
 	_gl_verts = nullptr;
 	_gl_indices = nullptr;
 }
 
-boa::Polygon::~Polygon() {
+Polygon::~Polygon() {
 	delete[] _gl_verts;
 	delete[] _gl_indices;
 }
 
-void boa::Polygon::rotate(float ang, const glm::vec4 &axis) {
+void Polygon::rotate(float ang, const glm::vec4 &axis) {
 	if(ang == 0) return;
 
 	glm::vec4 negated_axis = -axis;
@@ -26,14 +28,14 @@ void boa::Polygon::rotate(float ang, const glm::vec4 &axis) {
 	_cache_status.gl_data = false;
 }
 
-void boa::Polygon::set_position(const glm::vec4 &pos) {
+void Polygon::set_position(const glm::vec4 &pos) {
 	if(pos != _pos) {
 		translate(pos - _pos);
 		_cache_status.gl_data = false;
 	}
 }
 
-void boa::Polygon::translate(const glm::vec4 &xy) {
+void Polygon::translate(const glm::vec4 &xy) {
 	_pos += xy;
 	_pos[3] = 1;
 	for(glm::vec4 &pt : _verts) {
@@ -43,15 +45,15 @@ void boa::Polygon::translate(const glm::vec4 &xy) {
 	_cache_status.gl_data = false;
 }
 
-glm::vec4 boa::Polygon::position() {
+glm::vec4 Polygon::position() {
 	return _pos;
 }
 
-std::vector<glm::vec4> boa::Polygon::vertices() {
+std::vector<glm::vec4> Polygon::vertices() {
 	return _verts;
 }
 
-bool boa::Polygon::is_convex() {
+bool Polygon::is_convex() {
 	if(!_cache_status.is_convex) {
 		glm::vec3 a{_verts.front()[0] - _verts.back()[0], _verts.front()[1] - _verts.back()[1], 0.f};
 		glm::vec3 b{_verts[1][0] - _verts.front()[0], _verts[1][1] - _verts.front()[1], 0.f};
@@ -77,31 +79,31 @@ bool boa::Polygon::is_convex() {
 	return _is_convex;
 }
 
-GLfloat* boa::Polygon::get_gl_vertices() {
+GLfloat* Polygon::get_gl_vertices() {
 	gen_gl_data();
 	return _gl_verts;
 }
 
-GLuint* boa::Polygon::get_gl_indices() {
+GLuint* Polygon::get_gl_indices() {
 	gen_gl_data();
 	return _gl_indices;
 }
 
-int boa::Polygon::get_gl_vertices_size() {
+int Polygon::get_gl_vertices_size() {
 	gen_gl_data();
 	return _verts_size;
 }
 
-int boa::Polygon::get_gl_indices_size() {
+int Polygon::get_gl_indices_size() {
 	gen_gl_data();
 	return _indices_size;
 }
 
-int boa::Polygon::get_num_elements() {
+int Polygon::get_num_elements() {
 	return _num_elmns;
 }
 
-glm::vec4 boa::Polygon::get_pos() {
+glm::vec4 Polygon::get_pos() {
 	return _pos;
 }
 int constrain(int index, int bound) {
@@ -111,7 +113,7 @@ int constrain(int index, int bound) {
 	return index;
 }
 
-std::vector<int> boa::Polygon::get_subpolygon(int &top_start, int top_end, int bottom_start, int &bottom_end) {
+std::vector<int> Polygon::get_subpolygon(int &top_start, int top_end, int bottom_start, int &bottom_end) {
 	DEBUG("SUBPOLYGON: " << top_start << ", " << top_end << ", " << bottom_start << ", " << bottom_end);
 	int num_vertices = _verts.size();
 	std::vector<int> subpolygon;
@@ -132,7 +134,7 @@ std::vector<int> boa::Polygon::get_subpolygon(int &top_start, int top_end, int b
 	return subpolygon;
 }
 
-std::vector<std::vector<int>> boa::Polygon::partition() {
+std::vector<std::vector<int>> Polygon::partition() {
 	int num_vertices = _verts.size();
 
 	struct Node {
@@ -240,7 +242,7 @@ std::vector<std::vector<int>> boa::Polygon::partition() {
 	return partitions;
 }
 
-void boa::Polygon::triangulate(std::vector<int> &indices, int &start_index, int &indices_index) {
+void Polygon::triangulate(std::vector<int> &indices, int &start_index, int &indices_index) {
 	int num_vertices = indices.size();
 
 #ifdef DEBUG_MODE
@@ -372,7 +374,7 @@ void boa::Polygon::triangulate(std::vector<int> &indices, int &start_index, int 
 	start_index += num_vertices;
 }
 
-void boa::Polygon::gen_gl_data() {
+void Polygon::gen_gl_data() {
 	if (!_cache_status.gl_data) {
 		_cache_status.gl_data = true;
 
@@ -421,3 +423,5 @@ std::string to_string(const std::vector<glm::vec4> &vertices) {
 		str += "(" + std::to_string(vertex[0]) + ", " + std::to_string(vertex[1]) + ") ";
 	return str;
 }
+
+} // boa
