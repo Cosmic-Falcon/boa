@@ -1,6 +1,6 @@
 include
 lib
 obj/*.o
-out/boa*
+out/*
 
 boa

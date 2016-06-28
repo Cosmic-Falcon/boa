@@ -12,8 +12,8 @@
  *  Created by Neelay Junnarkar and Tyler Packard
  */
 
-#include "boa_constants.h"
+#include "boa_global.h"
 #include "boa_fns.h"
-#include "polygon.h"
+#include "gl_convert.h"
 
 #endif // BOA_H

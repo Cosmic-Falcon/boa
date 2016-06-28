@@ -13,7 +13,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <SOIL.h>
 
-#include "global.h"
+#include "boa_global.h"
 
 namespace boa {
 
