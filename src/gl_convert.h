@@ -26,7 +26,7 @@ struct GLData {
 	int indices_size;
 };
 
-GLData gen_gl_data(std::vector<Vertices> vertices);
+GLData gen_gl_data(Vertices vertices);
 
 } // boa
 

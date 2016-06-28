@@ -19,12 +19,12 @@ LIBRARIES := -lSOIL -lGL -lglfw -lGLEW
 .PHONY : all clean
 all: $(OBJS)
 	$(AR) $(ARFLAGS) $(OUT_DIR)/lib$(LIB_OUT).a $(OBJS)
-	cp $(SRC_DIR)/$(OUT).h $(OUT_DIR)/$(OUT).h
+	cp $(SRC_DIR)/*.h $(OUT_DIR)/$(OUT)
 
 shared: CFLAGS += -fpic
 shared: $(OBJS)
 	$(CC) -shared $(OBJS) $(INCLUDE_DIRECTORIES) $(LIBRARY_DIRECTORIES) $(LIBRARIES) -o $(OUT_DIR)/lib$(LIB_OUT).so # Not sure if linking libraries works when compiling shared libraries
-	cp $(SRC_DIR)/$(OUT).h $(OUT_DIR)/$(OUT).h
+	cp $(SRC_DIR)/*.h $(OUT_DIR)/$(OUT)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	$(CC) $(CFLAGS) $< $(INCLUDE_DIRECTORIES) -o $@
@@ -36,4 +36,5 @@ run: all
 	./$(OUT_DIR)/$(OUT)
 
 clean:
-	rm -f $(OUT_DIR)/$(OUT) $(OBJS)
+	rm -f $(OUT_DIR)/lib$(LIB_OUT).* $(OBJS)
+	rm -f $(OUT_DIR)/$(OUT)/*.h
