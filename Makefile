@@ -14,7 +14,7 @@ OBJS := $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
 
 INCLUDE_DIRECTORIES := -Iinclude
 LIBRARY_DIRECTORIES := -Llib
-LIBRARIES := -lSOIL -lGL -lglfw -lGLEW
+LIBRARIES := -lGL -lglfw -lGLEW
 
 .PHONY : all clean
 all: $(OBJS)

@@ -1,5 +1,8 @@
 #include "boa_fns.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 namespace boa {
 
 bool init(GLint version_major, GLint version_minor, GLboolean resizable) {
@@ -63,14 +66,14 @@ GLuint create_program(std::initializer_list<GLuint> shaders) {
 
 // Textures
 GLuint load_texture(const char* source) {
-	int width, height;
-	unsigned char* image = SOIL_load_image(source, &width, &height, 0, SOIL_LOAD_RGB);
+	int width, height, channels;
+	unsigned char* image = stbi_load(source, &width, &height, &channels, 0);
 
 	GLuint texture;
 	glGenTextures(1, &texture);
 
 	if(image == NULL) {
-		ERROR("Image " << source << " does not exist");
+		ERROR("Image " << source << " could not be loaded");
 		return texture;
 	}
 
@@ -80,7 +83,7 @@ GLuint load_texture(const char* source) {
 	glGenerateMipmap(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	SOIL_free_image_data(image);
+	stbi_image_free(image);
 
 	return texture;
 }
