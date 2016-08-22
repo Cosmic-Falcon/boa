@@ -268,6 +268,7 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 GLData gen_gl_data(Vertices vertices) {
 	GLData data;
 	data.num_verts = vertices.size();
+	data.num_elements = (vertices.size() - 2) * 3;
 
 	data.vertices = new GLfloat[data.num_verts * 3];
 	for(int i = 0; i < data.num_verts; ++i) {
@@ -277,7 +278,7 @@ GLData gen_gl_data(Vertices vertices) {
 		data.vertices[(i)* 3 + 2] = 0.0f;
 	}
 
-	data.indices = new GLuint[(data.num_verts - 2) * 3];
+	data.indices = new GLuint[data.num_elements];
 	int indices_index = 0; // Index of gl_indices to add to
 	int index = 0;
 
@@ -287,11 +288,11 @@ GLData gen_gl_data(Vertices vertices) {
 	}
 
 	data.verts_size = sizeof(GLfloat) * data.num_verts * 3;
-	data.indices_size = sizeof(GLint) * (data.num_verts - 2) * 3;
+	data.indices_size = sizeof(GLint) * data.num_elements;
 
 #ifdef DEBUG_MODE
 	std::string indices_str = "";
-	for(int i = 0; i < (data.num_verts - 2) * 3; ++i) {
+	for(int i = 0; i < data.num_elements; ++i) {
 		indices_str += "(";
 		indices_str += std::to_string(data.indices[i]) + ", ";
 		indices_str += std::to_string(data.indices[++i]) + ", ";

@@ -22,6 +22,7 @@ struct GLData {
 	GLuint *indices;
 
 	int num_verts;
+	int num_elements;
 	int verts_size;
 	int indices_size;
 };
