@@ -16,7 +16,7 @@ OBJS := $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
 
 INCL_DIRS := -Iinclude
 LIB_DIRS := -Llib
-LIBS := -lGL -lglfw -lGLEW
+LIBS := -lGL -lglfw -lGLEW -lBOA
 
 # Test variables
 TEST_BIN := $(OUT)_test
@@ -51,7 +51,7 @@ $(TEST_DIR)/$(OBJ_DIR)/%.o: $(TEST_DIR)/$(SRC_DIR)/%.cpp
 test: all $(TEST_OBJS)
 	$(CC) $(TEST_OBJS) $(INCL_DIRS) $(TEST_INCL_DIRS) $(LIB_DIRS) $(TEST_LIB_DIRS) $(TEST_LIBS) -o $(TEST_DIR)/$(TEST_BIN)
 
-run:
+run: test
 	cd $(TEST_DIR); ./$(TEST_BIN)
 
 # General targets
@@ -62,3 +62,4 @@ clean:
 	rm -f $(OUT_DIR)/lib$(LIB_OUT).* $(OBJS)
 	rm -f $(OUT_DIR)/$(OUT)/*.h
 	rm -f $(TEST_DIR)/$(OBJ_DIR)/*.o
+	rm -f $(TEST_DIR)/$(TEST_BIN)
