@@ -1,11 +1,13 @@
 TODO
 ====
 
-* **Non-monotone partitioning edge cases**
+###Non-monotone partitioning edge cases
+* Fails when diagonals are created that are not bound within the polygon (fixed)
+* Function that assigns vertices to partitions is naive and does not work in many cases
 
-	Non-monotone partitioning fails sometimes by drawing diagonals the are not
-	contained within the polygon. One example is with the polygon
-	`{0, 0}, {0, 72}, {24, 72}, {72, 48}, {24, 24}, {48, 12}, {120, 48}, {72, 72}, {144, 72}, {144, 0}`.
-	The partitions of the polygon overlap each other and the triangulation of these
-	partitions creates far too many triangles. The rendered polygon is also
-	incorrect.
+###Different colors
+* Add ability to change the color of polygons
+
+###Outline mode
+* Add ability to draw outlines of polygons instead of solids. This will be useful for debugging
+* Possibly also add vertex mode that only draws vertices
