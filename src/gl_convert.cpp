@@ -14,40 +14,48 @@ int constrain(int index, int bound) {
 // NOTE: Modifies the parameters &top_start and &bottom_end (leftmost vertices) to point to
 // top_end and bottom_start (rightmost vertices), respectively.
 // Returns the indices of the subpolygon in clockwise order.
-std::vector<int> get_subpolygon(int &num_verts, int &top_start, int top_end, int bottom_start, int &bottom_end) {
-	DEBUG("SUBPOLYGON: " << top_start << ", " << top_end << ", " << bottom_start << ", " << bottom_end);
-	std::vector<int> subpolygon;
+// TODO: Redocument
+void split_polygon(const std::vector<int> &indices, int num_verts, int top_start, int top_end, int bottom_start, int bottom_end, std::vector<int> &indices_1, std::vector<int> &indices_2) {
+	DEBUG("SPLITTING POLYGON: " << indices[top_start] << ", " << indices[top_end] << ", " << indices[bottom_start] << ", " << indices[bottom_end]);
 
 	for(int i = top_start; i != top_end; i = constrain(i + 1, num_verts)) {
-		subpolygon.push_back(i);
+		indices_1.push_back(indices[i]);
 	}
-	subpolygon.push_back(top_end);
+	indices_1.push_back(indices[top_end]);
 
 	for(int i = bottom_start; i != bottom_end; i = constrain(i + 1, num_verts)) {
-		subpolygon.push_back(i);
+		indices_1.push_back(indices[i]);
 	}
-	subpolygon.push_back(bottom_end);
+	indices_1.push_back(indices[bottom_end]);
 
-	// Move old start and points to the right side
-	// TODO: Maybe not the best idea to modify these variables as a side effect
-	top_start = top_end;
-	bottom_end = bottom_start;
+	for(int i = top_end; i != bottom_start; i = constrain(i + 1, num_verts)) {
+		indices_2.push_back(indices[i]);
+	}
+	indices_2.push_back(indices[bottom_start]);
 
-	return subpolygon;
+#ifdef DEBUG_MODE
+	std::string indices_1_str = "";
+	for(int i : indices_1) indices_1_str += std::to_string(i) + " ";
+	DEBUG("\tLeft indices: " << indices_1_str);
+
+	std::string indices_2_str = "";
+	for(int i : indices_2) indices_2_str += std::to_string(i) + " ";
+	DEBUG("\tRight indices: " << indices_2_str);
+#endif
 }
 
 // Divide polygon into y-monotone partitions.
 // Returns a vector of the partitions ordered from left to right.
-std::vector<std::vector<int>> partition(GLfloat *vertices, int &num_verts) {
+std::vector<std::vector<int>> partition(GLfloat *vertices, int &total_verts) {
 	struct Node {
-		int index;
+		int indices_index;
 		Node *prev;
 		Node *next;
 		Node *left;
 		Node *right;
 
-		Node(int index, Node *prev, Node *next, Node *left, Node *right) {
-			this->index = index;
+		Node(int indices_index, Node *prev, Node *next, Node *left, Node *right) {
+			this->indices_index = indices_index;
 			this->prev = prev;
 			this->next = next;
 			this->left = left;
@@ -55,128 +63,160 @@ std::vector<std::vector<int>> partition(GLfloat *vertices, int &num_verts) {
 		}
 	};
 
-	auto ltr_compare = [&] (int &lhs, int &rhs) -> bool { return vertices[lhs * 3] > vertices[rhs * 3]; }; // Multiply by 3 with no offset to get X coordinates
-	std::priority_queue<int, std::vector<int>, decltype(ltr_compare)> ltr_order(ltr_compare);
-
-	// Get leftmost and rightmost vertices and order vertices from left-to-right in ltr_order
-	// TODO: find left and rightmost indices by getting the top and bottom of ltr_order. Will have to change to a set to do so
-	int left_index = 0;
-	int right_index = 0;
-	ltr_order.push(0);
-	for(int i = 1; i < num_verts; ++i) {
-		ltr_order.push(i);
-		if(vertices[i * 3] < vertices[left_index * 3])
-			left_index = i;
-		else if(vertices[i * 3] > vertices[right_index * 3])
-			right_index = i;
-	}
-
-	// Construct linked list of vertices in order of placement in the polygon
-	Node *root = new Node(left_index, nullptr, nullptr, nullptr, nullptr);
-	Node *rightmost = nullptr;
-	Node *current = root;
-	for(int i = left_index + 1; i < num_verts + left_index; ++i) {
-		Node *child = new Node(i % num_verts, current, nullptr, nullptr, nullptr);
-		current->next = child;
-		current = child;
-
-		if(child->index == right_index)
-			rightmost = child;
-	}
-	current->next = root;
-	root->prev = current;
-
-	// Add links to left and right vertices in the linked list
-	Node *next = root;
-	for(int i = 0; i < num_verts; ++i) {
-		current = next;
-		for(int j = next->index; j < ltr_order.top(); ++j)
-			next = next->next;
-		for(int j = next->index; j > ltr_order.top(); --j)
-			next = next->prev;
-
-		current->right = next;
-		next->left = current;
-		ltr_order.pop();
-	}
-
-#ifdef DEBUG_MODE
-	Node *node = root;
-	std::string ltr_str = "";
-	for(int i = 0; i < num_verts; ++i) {
-		ltr_str += std::to_string(node->index) + " ";
-		node = node->right;
-	}
-	DEBUG("LEFT TO RIGHT: " << ltr_str);
-#endif
-
 	// Partition into monotone partitions
 	std::vector<std::vector<int>> partitions;
-	current = root;
 
-	// The indices to start and end the partition. Move rightward as new partitions are created.
-	int start_index = left_index;
-	int close_index = constrain(left_index - 1, num_verts);
+	std::queue<std::vector<int>> subpolygons;
+	std::vector<int> all_indices(total_verts);
+	for(int i = 0; i < total_verts; ++i) all_indices[i] = i;
+	subpolygons.push(all_indices);
 
-	GLfloat current_x, current_y,
-		prev_x, prev_y,
-		next_x, next_y,
-		left_x, right_x;
+	while(!subpolygons.empty()) {
+		// Get indices to partition
+		std::vector<int> indices = subpolygons.front();
+		int num_verts = indices.size();
+		subpolygons.pop();
 
-	for(int i = 0; i < num_verts; ++i) {
-		int index = current->index;
+		auto ltr_compare = [&] (int &lhs, int &rhs) -> bool { return vertices[indices[lhs] * 3] > vertices[indices[rhs] * 3]; }; // Multiply by 3 with no offset to get X coordinates
+		std::priority_queue<int, std::vector<int>, decltype(ltr_compare)> ltr_order(ltr_compare);
 
-		// TODO: See if the check that the vertex is to the right of the leftmost index is necessary
-		current_x = vertices[index * 3];
-		current_y = vertices[index * 3 + 1];
-		prev_x = vertices[constrain(index - 1, num_verts) * 3];
-		prev_y = vertices[constrain(index - 1, num_verts) * 3 + 1];
-		next_x = vertices[constrain(index + 1, num_verts) * 3];
-		next_y = vertices[constrain(index + 1, num_verts) * 3 + 1];
-		left_x = vertices[left_index * 3];
-		right_x = vertices[right_index * 3];
+		// Get leftmost and rightmost vertices and order vertices from left-to-right in ltr_order
+		// TODO: find left and rightmost indices by getting the top and bottom of ltr_order. Will have to change to a set to do so
+		int left_indices_index = 0;
+		int right_indices_index = 0;
 
-		if(current_x > left_x && current_x < prev_x && current_x < next_x) {
-			GLfloat prev_theta = std::atan2(prev_y - current_y, prev_x - current_x);
-			GLfloat next_theta = std::atan2(next_y - current_y, next_x - current_x);
-			GLfloat theta = std::atan2(vertices[current->left->index * 3 + 1] - current_y, vertices[current->left->index * 3] - current_x);
+#ifdef DEBUG_MODE
+		std::string sub_indices_str = "";
+		for(int i = 0; i < num_verts; ++i) sub_indices_str += std::to_string(indices[i]) + " ";
+		DEBUG("SUB-INDICES: " << sub_indices_str);
+#endif
 
-			if(prev_y > next_y ? (theta > prev_theta || theta < next_theta) : (prev_theta < theta && theta < next_theta)) {
-				partitions.push_back(get_subpolygon(num_verts, start_index, std::min(index, current->left->index), std::max(index, current->left->index), close_index));
-				DEBUG("Created partitioning diagonal. INDEX | LEFT CONNECTOR: " << index << " | " << current->left->index);
-			} else {
-				DEBUG("FAILED DIAGONAL INDEX | LEFT CONNECTOR: " << index << " | " << current->left->index);
-			}
-		} else if(current_x < right_x && current_x > prev_x && current_x > next_x) {
-			GLfloat prev_theta = std::atan2(prev_y - current_y, prev_x - current_x);
-			GLfloat next_theta = std::atan2(next_y - current_y, next_x - current_x);
-			GLfloat theta = std::atan2(vertices[current->right->index * 3 + 1] - current_y, vertices[current->right->index * 3] - current_x);
-
-			DEBUG("THETA (previous, current, next): " << prev_theta << ", " << theta << ", " << next_theta);
-
-			if(prev_y > next_y ? (theta > prev_theta || theta < next_theta) : (prev_theta < theta && theta < next_theta)) {
-				partitions.push_back(get_subpolygon(num_verts, start_index, std::min(index, current->right->index), std::max(index, current->right->index), close_index));
-				DEBUG("Created partitioning diagonal. INDEX | RIGHT CONNECTOR: " << index << " | " << current->right->index);
-			} else {
-				DEBUG("FAILED DIAGONAL INDEX | RIGHT CONNECTOR: " << index << " | " << current->right->index);
-			}
+		for(int i = 0; i < num_verts; ++i) {
+			ltr_order.push(i);
+			if(vertices[indices[i] * 3] < vertices[indices[left_indices_index] * 3])
+				left_indices_index = i;
+			else if(vertices[indices[i] * 3] > vertices[indices[right_indices_index] * 3])
+				right_indices_index = i;
 		}
 
-		if(current == rightmost)
-			break;
-		else
-			current = current->right;
-	}
+		// Construct linked list of vertices in order of placement in the polygon, starting with the leftmost vertex
+		Node *leftmost = new Node(left_indices_index, nullptr, nullptr, nullptr, nullptr);
+		Node *rightmost = nullptr;
+		Node *current = leftmost;
+		for(int i = left_indices_index + 1; i < num_verts + left_indices_index; ++i) {
+			Node *child = new Node(i % num_verts, current, nullptr, nullptr, nullptr);
+			current->next = child;
+			current = child;
 
-	partitions.push_back(get_subpolygon(num_verts, start_index, right_index, constrain(right_index + 1, num_verts), close_index)); // Create and add partition with remaining vertices
+			if(child->indices_index == right_indices_index)
+				rightmost = child;
+		}
+		current->next = leftmost;
+		leftmost->prev = current;
+
+		// Add links to left and right vertices in the linked list
+		// TODO: Try converting to std::find
+		Node *next = leftmost;
+		for(int i = 0; i < num_verts; ++i) {
+			current = next;
+			for(int j = next->indices_index; indices[j] < indices[ltr_order.top()]; ++j)
+				next = next->next;
+			for(int j = next->indices_index; indices[j] > indices[ltr_order.top()]; --j)
+				next = next->prev;
+
+			current->right = next;
+			next->left = current;
+			ltr_order.pop();
+		}
+
+#ifdef DEBUG_MODE
+		Node *node = leftmost;
+		std::string ltr_str = "";
+		for(int i = 0; i < num_verts; ++i) {
+			ltr_str += std::to_string(indices[node->indices_index]) + " ";
+			node = node->right;
+		}
+		DEBUG("LEFT TO RIGHT: " << ltr_str);
+#endif
+
+		// The indices to start and end the partition. Move rightward as new partitions are created.
+		current = leftmost;
+		GLfloat current_x, current_y,
+			prev_x, prev_y,
+			next_x, next_y,
+			left_x, right_x;
+
+		bool monotone_partition = true;
+		for(int i = 0; i < num_verts; ++i) {
+			int indices_index = current->indices_index;
+
+			// TODO: See if the check that the vertex is to the right of the leftmost index is necessary
+			current_x = vertices[indices[indices_index] * 3];
+			current_y = vertices[indices[indices_index] * 3 + 1];
+			prev_x = vertices[indices[constrain(indices_index - 1, num_verts)] * 3];
+			prev_y = vertices[indices[constrain(indices_index - 1, num_verts)] * 3 + 1];
+			next_x = vertices[indices[constrain(indices_index + 1, num_verts)] * 3];
+			next_y = vertices[indices[constrain(indices_index + 1, num_verts)] * 3 + 1];
+			left_x = vertices[indices[left_indices_index] * 3];
+			right_x = vertices[indices[right_indices_index] * 3];
+
+			if(current_x > left_x && current_x < prev_x && current_x < next_x) {
+				GLfloat prev_theta = std::atan2(prev_y - current_y, prev_x - current_x);
+				GLfloat next_theta = std::atan2(next_y - current_y, next_x - current_x);
+				GLfloat theta = std::atan2(vertices[indices[current->left->indices_index] * 3 + 1] - current_y, vertices[indices[current->left->indices_index] * 3] - current_x);
+
+				if(prev_y > next_y ? (theta > prev_theta || theta < next_theta) : (prev_theta < theta && theta < next_theta)) {
+					// TODO: run new iterations
+					std::vector<int> indices_1;
+					std::vector<int> indices_2;
+					split_polygon(indices, num_verts, left_indices_index, std::min(indices_index, current->left->indices_index), std::max(indices_index, current->left->indices_index), constrain(left_indices_index - 1, num_verts), indices_1, indices_2);
+					subpolygons.push(indices_1);
+					subpolygons.push(indices_2);
+					DEBUG("\tCreated partitioning diagonal. (INDEX | LEFT CONNECTOR): " << indices[indices_index] << " | " << indices[current->left->indices_index]);
+					monotone_partition = false;
+					break;
+				} else {
+					DEBUG("\tFAILED DIAGONAL (INDEX | LEFT CONNECTOR): " << indices[indices_index] << " | " << indices[current->left->indices_index]);
+				}
+			} else if(current_x < right_x && current_x > prev_x && current_x > next_x) {
+				GLfloat prev_theta = std::atan2(prev_y - current_y, prev_x - current_x);
+				GLfloat next_theta = std::atan2(next_y - current_y, next_x - current_x);
+				GLfloat theta = std::atan2(vertices[indices[current->right->indices_index] * 3 + 1] - current_y, vertices[indices[current->right->indices_index] * 3] - current_x);
+
+				DEBUG("THETA (previous, current, next): " << prev_theta << ", " << theta << ", " << next_theta);
+
+				if(prev_y > next_y ? (theta > prev_theta || theta < next_theta) : (prev_theta < theta && theta < next_theta)) {
+					std::vector<int> indices_1;
+					std::vector<int> indices_2;
+					split_polygon(indices, num_verts, left_indices_index, std::min(indices_index, current->right->indices_index), std::max(indices_index, current->right->indices_index), constrain(left_indices_index - 1, num_verts), indices_1, indices_2);
+					subpolygons.push(indices_1);
+					subpolygons.push(indices_2);
+					DEBUG("\tCreated partitioning diagonal. (INDEX | RIGHT CONNECTOR): " << indices[indices_index] << " | " << indices[current->right->indices_index]);
+					monotone_partition = false;
+					break;
+				} else {
+					DEBUG("\tFAILED DIAGONAL (INDEX | RIGHT CONNECTOR): " << indices[indices_index] << " | " << indices[current->right->indices_index]);
+				}
+			}
+
+			if(current == rightmost)
+				break;
+			else
+				current = current->right;
+		}
+
+		if(monotone_partition)
+			partitions.push_back(indices);
+	}
 
 #ifdef DEBUG_MODE
 	DEBUG("Created " << partitions.size() << " partitions:");
 	for(auto partition_vertices : partitions) {
+		std::string partition_str = "";
 		for(int i = 0; i < partition_vertices.size(); ++i) {
-			std::cout << partition_vertices[i] << " ";
+			partition_str += std::to_string(partition_vertices[i]) + " ";
 		}
-		std::cout << std::endl;
+		DEBUG("\t" << partition_str);
 	}
 #endif
 
