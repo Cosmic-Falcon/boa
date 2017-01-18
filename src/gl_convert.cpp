@@ -2,11 +2,18 @@
 
 namespace boa {
 
-int constrain(int index, int bound) {
-	while(index >= bound) index -= bound;
-	while(index < 0) index += bound;
+int constrain(int value, int bound) {
+	while(value >= bound) value -= bound;
+	while(value < 0) value += bound;
 
-	return index;
+	return value;
+}
+
+double constrain(double value, double bound) {
+	while(value >= bound) value -= bound;
+	while(value < 0) value += bound;
+
+	return value;
 }
 
 // Get vertices of the region defined by two sequences of points on the top and
@@ -226,9 +233,11 @@ std::vector<std::vector<int>> partition(GLfloat *vertices, int &total_verts) {
 
 // Divide a y-monotone polygon partition into triangles.
 void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &indices_index) {
+	int num_verts = indices.size();
+
 #ifdef DEBUG_MODE
 	std::string vertex_string = "";
-	for(int i = 0; i < data.num_verts; ++i) {
+	for(int i = 0; i < num_verts; ++i) {
 		vertex_string += std::to_string(indices[i]) + " ";
 	}
 	DEBUG_TITLE("TRIANGULATING: " + vertex_string);
@@ -238,7 +247,7 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 	int right_index = 0; // Index of the rightmost point (end point)
 
 	// TODO: check if these are always the first and last vertices
-	for(int i = 0; i < data.num_verts; ++i) {
+	for(int i = 1; i < num_verts; ++i) {
 		// Find leftmost and rightmost vertices
 		if(data.vertices[indices[i] * 3] < data.vertices[indices[left_index] * 3])
 			left_index = i;
@@ -254,17 +263,17 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 	std::vector<int> remaining_vertices; // Vertices that have been analyzed but not triangulated. Used for creating fans.
 
 	// Sweep through vertices from left to right and triangulate each monotone polygon
-	for(int i = 0; i < data.num_verts; ++i) {
+	for(int i = 0; i < num_verts; ++i) {
 		// Move to next vertex to the right to analyze
-		if((data.vertices[indices[constrain(top_index + 1, data.num_verts)] * 3] < data.vertices[indices[constrain(bottom_index - 1, data.num_verts)] * 3] || bottom_index == right_index) && top_index != right_index) {
+		if((data.vertices[indices[constrain(top_index + 1, num_verts)] * 3] < data.vertices[indices[constrain(bottom_index - 1, num_verts)] * 3] || bottom_index == right_index) && top_index != right_index) {
 			// Checks if the next top vertex is to the left of the next bottom vertex or bottom vertex is the rightmost vertex. Evaluates to false if the top vertex is the rightmost vertex.
 			// Moves the top vertex rightwards (clockwise)
-			top_index = constrain(top_index + 1, data.num_verts);
+			top_index = constrain(top_index + 1, num_verts);
 			last = current;
 			current = top_index;
 		} else {
 			// Moves the bottom vertex rightwards (counterclockwise)
-			bottom_index = constrain(bottom_index - 1, data.num_verts);
+			bottom_index = constrain(bottom_index - 1, num_verts);
 			last = current;
 			current = bottom_index;
 		}
@@ -277,11 +286,11 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 		 * of triangles shaped similarly to a chinese fan. If a fan of triangles is
 		 * formed, add each of the triangles in the fan.
 		 */
-		DEBUG("\tTop index, bottom index, left index | indices index, num elements: " << indices[top_index] << ", " << indices[bottom_index] << ", " << indices[left_index] << " | " << indices_index << ", " << ((data.num_verts - 2) * 3));
-		if(indices_index < (data.num_verts - 2) * 3 && top_index != left_index && bottom_index != left_index) { // On top half and neither top or bottom vertices are the leftmost vertex
-			if((current == top_index && current - 1 != last) || (current == bottom_index && current + 1 != last)) { // Last vertex was not on same half of the partition as the current vertex
+		DEBUG("Top index, bottom index: " << indices[top_index] << ", " << indices[bottom_index] << " | index " << indices_index << " of " << ((num_verts - 2) * 3));
+		if(indices_index < (data.num_verts - 2) * 3 /*&& (top_index != left_index && bottom_index != left_index)*/) { // On top half and neither top or bottom vertices are the leftmost vertex
+			if((current == top_index && current - 1 != last) || (current == bottom_index && current + 1 != last)) { // Last vertex was not on same top/bottom half of the partition as the current vertex
 #ifdef DEBUG_MODE
-				DEBUG("Fan");
+				DEBUG("FAN");
 				std::string str = "";
 				for(auto i : remaining_vertices) str += std::to_string(indices[i]) + " ";
 				DEBUG("\tRemaining vertices: " << str);
@@ -316,31 +325,40 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 				for(auto i : remaining_vertices) str += std::to_string(indices[i]) + " ";
 				DEBUG("\tRemaining vertices: " << str);
 #endif
-			} else { // If the last vertex was on the same half as the current one and a fan is not formed, check if a triangular ear is formed
-				// TODO: see if this if statement can be simplified
-				if(std::find(remaining_vertices.begin(), remaining_vertices.end(), constrain(current - 2, data.num_verts)) != remaining_vertices.end()) {
-					// TODO: replace current - 1 with last
-					double old_slope = double(data.vertices[indices[constrain(current - 2, data.num_verts)] * 3 + 1] - data.vertices[indices[constrain(current - 1, data.num_verts)] * 3 + 1]) /
-						double(data.vertices[indices[constrain(current - 2, data.num_verts)] * 3] - data.vertices[indices[constrain(current - 1, data.num_verts)] * 3]);
-					double new_slope = double(data.vertices[indices[constrain(current - 2, data.num_verts)] * 3 + 1] - data.vertices[indices[constrain(current, data.num_verts)] * 3 + 1]) /
-						double(data.vertices[indices[constrain(current - 2, data.num_verts)] * 3] - data.vertices[indices[constrain(current, data.num_verts)] * 3]);
+			} else if(std::find(remaining_vertices.begin(), remaining_vertices.end(), constrain(current - 1, num_verts)) != remaining_vertices.end() && remaining_vertices.size() > 1) {
+			// If the last vertex was on the same half as the current one and a fan is not formed, check if a triangular ear is formed
+				DEBUG("Checking for ear");
+				int prev_prev_index = indices[constrain(remaining_vertices[remaining_vertices.size() - 2], num_verts)];
+				int prev_index = indices[constrain(remaining_vertices.back(), num_verts)];
+				int current_index = indices[constrain(current, num_verts)];
+				DEBUG("\tAngle segment: (" << prev_prev_index << ", " << prev_index << ", " << current_index << ")");
 
-					if(current == top_index && new_slope < old_slope) { // Ear on top
-						DEBUG("Upper ear around " << indices[current]);
-						data.indices[indices_index++] = indices[current];
-						data.indices[indices_index + 2] = indices[remaining_vertices.back()];
-						remaining_vertices.pop_back();
-						data.indices[indices_index++] = indices[remaining_vertices.back()]; // TODO: this may not necessarily be current - 2
-						++indices_index;
-						DEBUG("\tResultant indices: " << data.indices[indices_index - 3] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
-					} else if(current == bottom_index && new_slope > old_slope) { // Ear on bottom
-						DEBUG("Lower ear around " << indices[current]);
-						data.indices[indices_index++] = indices[current];
-						data.indices[indices_index++] = indices[remaining_vertices.back()];
-						remaining_vertices.pop_back();
-						data.indices[indices_index++] = indices[remaining_vertices.back()];
-						DEBUG("\tResultant indices: " << data.indices[indices_index - 3] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
-					}
+				GLfloat prev_theta = std::atan2(data.vertices[prev_prev_index * 3 + 1] - data.vertices[prev_index * 3 + 1], data.vertices[prev_prev_index * 3] - data.vertices[prev_index * 3]);
+				GLfloat current_theta = std::atan2(data.vertices[current_index * 3 + 1] - data.vertices[prev_index * 3 + 1], data.vertices[current_index * 3] - data.vertices[prev_index * 3]);
+				GLfloat net_theta = constrain(current_theta - prev_theta, 2 * boa::PI);
+
+				DEBUG("\tPrevious theta, current theta, net theta: " << prev_theta << ", " << current_theta << ", " << net_theta);
+
+				if(current == top_index && net_theta < boa::PI) { // Ear on top
+					DEBUG("\tUPPER EAR around " << indices[current]);
+#ifdef DEBUG_MODE
+					std::string str = "";
+					for(auto i : remaining_vertices) str += std::to_string(indices[i]) + "(" + std::to_string(i) + ") ";
+					DEBUG("\tRemaining vertices: " << str);
+#endif
+					data.indices[indices_index++] = indices[current];
+					data.indices[indices_index + 1] = indices[remaining_vertices.back()];
+					remaining_vertices.pop_back();
+					data.indices[indices_index++] = indices[remaining_vertices.back()]; // TODO: this may not necessarily be current - 2
+					++indices_index;
+					DEBUG("\tResultant indices: " << data.indices[indices_index - 3] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
+				} else if(current == bottom_index && net_theta < boa::PI) { // Ear on bottom
+					DEBUG("\tLOWER EAR around " << indices[current]);
+					data.indices[indices_index++] = indices[current];
+					data.indices[indices_index++] = indices[remaining_vertices.back()];
+					remaining_vertices.pop_back();
+					data.indices[indices_index++] = indices[remaining_vertices.back()];
+					DEBUG("\tResultant indices: " << data.indices[indices_index - 3] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
 				}
 			}
 		}
@@ -348,7 +366,7 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 
 #ifdef DEBUG_MODE
 	std::string indices_str = "";
-	for(int i = 0; i < (data.num_verts - 2) * 3; ++i) {
+	for(int i = 0; i < (num_verts - 2) * 3; ++i) {
 		indices_str += "(";
 		indices_str += std::to_string(data.indices[start_index + i]) + ", ";
 		indices_str += std::to_string(data.indices[start_index + (++i)]) + ", ";
@@ -358,7 +376,7 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 	DEBUG("Partition indices: " << indices_str << std::endl);
 #endif
 
-	start_index += data.num_verts;
+	start_index += num_verts;
 }
 
 GLData gen_gl_data(Vertices vertices) {
