@@ -286,7 +286,7 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 		 * of triangles shaped similarly to a chinese fan. If a fan of triangles is
 		 * formed, add each of the triangles in the fan.
 		 */
-		DEBUG("Top index, bottom index: " << indices[top_index] << ", " << indices[bottom_index] << " | index " << indices_index << " of " << ((num_verts - 2) * 3));
+		DEBUG("Top index, bottom index: " << indices[top_index] << ", " << indices[bottom_index] << " | index " << indices_index << " of " << ((data.num_verts - 2) * 3));
 		if(indices_index < (data.num_verts - 2) * 3 /*&& (top_index != left_index && bottom_index != left_index)*/) { // On top half and neither top or bottom vertices are the leftmost vertex
 			if((current == top_index && current - 1 != last) || (current == bottom_index && current + 1 != last)) { // Last vertex was not on same top/bottom half of the partition as the current vertex
 #ifdef DEBUG_MODE
@@ -325,7 +325,7 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 				for(auto i : remaining_vertices) str += std::to_string(indices[i]) + " ";
 				DEBUG("\tRemaining vertices: " << str);
 #endif
-			} else if(std::find(remaining_vertices.begin(), remaining_vertices.end(), constrain(current - 1, num_verts)) != remaining_vertices.end() && remaining_vertices.size() > 1) {
+			} else if(remaining_vertices.size() > 1) {
 			// If the last vertex was on the same half as the current one and a fan is not formed, check if a triangular ear is formed
 				DEBUG("Checking for ear");
 				int prev_prev_index = indices[constrain(remaining_vertices[remaining_vertices.size() - 2], num_verts)];
@@ -341,16 +341,11 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 
 				if(current == top_index && net_theta < boa::PI) { // Ear on top
 					DEBUG("\tUPPER EAR around " << indices[current]);
-#ifdef DEBUG_MODE
-					std::string str = "";
-					for(auto i : remaining_vertices) str += std::to_string(indices[i]) + "(" + std::to_string(i) + ") ";
-					DEBUG("\tRemaining vertices: " << str);
-#endif
 					data.indices[indices_index++] = indices[current];
 					data.indices[indices_index + 1] = indices[remaining_vertices.back()];
 					remaining_vertices.pop_back();
-					data.indices[indices_index++] = indices[remaining_vertices.back()]; // TODO: this may not necessarily be current - 2
-					++indices_index;
+					data.indices[indices_index] = indices[remaining_vertices.back()];
+					indices_index += 2;
 					DEBUG("\tResultant indices: " << data.indices[indices_index - 3] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
 				} else if(current == bottom_index && net_theta < boa::PI) { // Ear on bottom
 					DEBUG("\tLOWER EAR around " << indices[current]);
