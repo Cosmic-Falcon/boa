@@ -17,7 +17,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 void key_parse(); // Act on key presses
 
 int main() {
-	//adder::Polygon poly({{0, 0}, {0, 72}, {24, 72}, {72, 48}, {24, 24}, {48, 12}, {120, 48}, {72, 72}, {144, 72}, {144, 0}}, {256, 128});
 	adder::Polygon poly({{0, 0}, {144, 0}, {144, -72}, {72, -72}, {120, -48}, {48, -12}, {24, -24}, {72, -48}, {24 ,-72}, {0, -72}}, {256, 128});
 	//poly.rotate(2*adder::PI/3, poly.get_pos());
 	adder::Body body(100, 100, -.1, poly);

@@ -287,7 +287,7 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 		 * formed, add each of the triangles in the fan.
 		 */
 		DEBUG("Top index, bottom index: " << indices[top_index] << ", " << indices[bottom_index] << " | index " << indices_index << " of " << ((data.num_verts - 2) * 3));
-		if(indices_index < (data.num_verts - 2) * 3 /*&& (top_index != left_index && bottom_index != left_index)*/) { // On top half and neither top or bottom vertices are the leftmost vertex
+		if(remaining_vertices.size() > 1 && indices_index < (data.num_verts - 2) * 3 /*&& (top_index != left_index && bottom_index != left_index)*/) { // On top half and neither top or bottom vertices are the leftmost vertex
 			if((current == top_index && current - 1 != last) || (current == bottom_index && current + 1 != last)) { // Last vertex was not on same top/bottom half of the partition as the current vertex
 #ifdef DEBUG_MODE
 				DEBUG("FAN");
@@ -325,7 +325,7 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 				for(auto i : remaining_vertices) str += std::to_string(indices[i]) + " ";
 				DEBUG("\tRemaining vertices: " << str);
 #endif
-			} else if(remaining_vertices.size() > 1) {
+			} else {
 			// If the last vertex was on the same half as the current one and a fan is not formed, check if a triangular ear is formed
 				DEBUG("Checking for ear");
 				int prev_prev_index = indices[constrain(remaining_vertices[remaining_vertices.size() - 2], num_verts)];
@@ -335,25 +335,30 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 
 				GLfloat prev_theta = std::atan2(data.vertices[prev_prev_index * 3 + 1] - data.vertices[prev_index * 3 + 1], data.vertices[prev_prev_index * 3] - data.vertices[prev_index * 3]);
 				GLfloat current_theta = std::atan2(data.vertices[current_index * 3 + 1] - data.vertices[prev_index * 3 + 1], data.vertices[current_index * 3] - data.vertices[prev_index * 3]);
-				GLfloat net_theta = constrain(current_theta - prev_theta, 2 * boa::PI);
 
-				DEBUG("\tPrevious theta, current theta, net theta: " << prev_theta << ", " << current_theta << ", " << net_theta);
-
-				if(current == top_index && net_theta < boa::PI) { // Ear on top
-					DEBUG("\tUPPER EAR around " << indices[current]);
-					data.indices[indices_index++] = indices[current];
-					data.indices[indices_index + 1] = indices[remaining_vertices.back()];
-					remaining_vertices.pop_back();
-					data.indices[indices_index] = indices[remaining_vertices.back()];
-					indices_index += 2;
-					DEBUG("\tResultant indices: " << data.indices[indices_index - 3] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
-				} else if(current == bottom_index && net_theta < boa::PI) { // Ear on bottom
-					DEBUG("\tLOWER EAR around " << indices[current]);
-					data.indices[indices_index++] = indices[current];
-					data.indices[indices_index++] = indices[remaining_vertices.back()];
-					remaining_vertices.pop_back();
-					data.indices[indices_index++] = indices[remaining_vertices.back()];
-					DEBUG("\tResultant indices: " << data.indices[indices_index - 3] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
+				if(current == top_index) { // Ear on top
+					GLfloat net_theta = constrain(current_theta - prev_theta, 2 * boa::PI);
+					DEBUG("\tPrevious theta, current theta, net theta: " << prev_theta << ", " << current_theta << ", " << net_theta);
+					if (net_theta < boa::PI) {
+						DEBUG("\tUPPER EAR around " << indices[current]);
+						data.indices[indices_index++] = indices[current];
+						data.indices[indices_index + 1] = indices[remaining_vertices.back()];
+						remaining_vertices.pop_back();
+						data.indices[indices_index] = indices[remaining_vertices.back()];
+						indices_index += 2;
+						DEBUG("\tResultant indices: " << data.indices[indices_index - 3] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
+					}
+				} else if(current == bottom_index) { // Ear on bottom
+					GLfloat net_theta = constrain(prev_theta - current_theta, 2 * boa::PI);
+					DEBUG("\tPrevious theta, current theta, net theta: " << prev_theta << ", " << current_theta << ", " << net_theta);
+					if (net_theta < boa::PI) {
+						DEBUG("\tLOWER EAR around " << indices[current]);
+						data.indices[indices_index++] = indices[current];
+						data.indices[indices_index++] = indices[remaining_vertices.back()];
+						remaining_vertices.pop_back();
+						data.indices[indices_index++] = indices[remaining_vertices.back()];
+						DEBUG("\tResultant indices: " << data.indices[indices_index - 3] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
+					}
 				}
 			}
 		}
