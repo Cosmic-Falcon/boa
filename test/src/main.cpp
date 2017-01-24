@@ -27,7 +27,8 @@ int main() {
 	glfwSetKeyCallback(window, key_callback);
 
 	glEnable(GL_DEPTH_TEST);
-	glClearColor(0.0, 0.0, 0.0, 0.0);
+	glClearColor(0.2, 0.5, 1.0, 0.0);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	GLuint vertex_shader = boa::compile_shader("res/shaders/shader.vert", GL_VERTEX_SHADER);
 	GLuint fragment_shader = boa::compile_shader("res/shaders/shader.frag", GL_FRAGMENT_SHADER);

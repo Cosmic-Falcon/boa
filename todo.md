@@ -9,6 +9,7 @@ TODO
 
 ###Different colors
 * Add ability to change the color of polygons
+* Color attributes added to shaders, need to add into gl_data now
 
 ###Outline mode
 * Add ability to draw outlines of polygons instead of solids. This will be useful for debugging
