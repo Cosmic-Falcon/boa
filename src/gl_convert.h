@@ -29,7 +29,7 @@ struct GLData {
 	int indices_size;
 };
 
-GLData gen_gl_data(Vertices vertices);
+GLData gen_gl_data(Vertices vertices, std::vector<glm::vec3> colors);
 
 } // boa
 

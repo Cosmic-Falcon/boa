@@ -53,7 +53,7 @@ void split_polygon(const std::vector<int> &indices, int num_verts, int top_start
 
 // Divide polygon into y-monotone partitions.
 // Returns a vector of the partitions ordered from left to right.
-std::vector<std::vector<int>> partition(GLfloat *vertices, int &total_verts) {
+std::vector<std::vector<int>> partition(GLfloat *vertices, int &total_verts, int num_attributes) {
 	DEBUG_TITLE("PARTITIONING " << std::to_string(total_verts) << " VERTICES");
 	struct Node {
 		int indices_index;
@@ -85,7 +85,7 @@ std::vector<std::vector<int>> partition(GLfloat *vertices, int &total_verts) {
 		int num_verts = indices.size();
 		subpolygons.pop();
 
-		auto ltr_compare = [&] (int &lhs, int &rhs) -> bool { return vertices[indices[lhs] * 3] > vertices[indices[rhs] * 3]; }; // Multiply by 3 with no offset to get X coordinates
+		auto ltr_compare = [&] (int &lhs, int &rhs) -> bool { return vertices[indices[lhs] * num_attributes] > vertices[indices[rhs] * num_attributes]; }; // Multiply by num_attributes with no offset to get X coordinates
 		std::priority_queue<int, std::vector<int>, decltype(ltr_compare)> ltr_order(ltr_compare);
 
 		// Get leftmost and rightmost vertices and order vertices from left-to-right in ltr_order
@@ -101,9 +101,9 @@ std::vector<std::vector<int>> partition(GLfloat *vertices, int &total_verts) {
 
 		for(int i = 0; i < num_verts; ++i) {
 			ltr_order.push(i);
-			if(vertices[indices[i] * 3] < vertices[indices[left_indices_index] * 3])
+			if(vertices[indices[i] * num_attributes] < vertices[indices[left_indices_index] * num_attributes])
 				left_indices_index = i;
-			else if(vertices[indices[i] * 3] > vertices[indices[right_indices_index] * 3])
+			else if(vertices[indices[i] * num_attributes] > vertices[indices[right_indices_index] * num_attributes])
 				right_indices_index = i;
 		}
 
@@ -159,19 +159,19 @@ std::vector<std::vector<int>> partition(GLfloat *vertices, int &total_verts) {
 			int indices_index = current->indices_index;
 
 			// TODO: See if the check that the vertex is to the right of the leftmost index is necessary
-			current_x = vertices[indices[indices_index] * 3];
-			current_y = vertices[indices[indices_index] * 3 + 1];
-			prev_x = vertices[indices[constrain(indices_index - 1, num_verts)] * 3];
-			prev_y = vertices[indices[constrain(indices_index - 1, num_verts)] * 3 + 1];
-			next_x = vertices[indices[constrain(indices_index + 1, num_verts)] * 3];
-			next_y = vertices[indices[constrain(indices_index + 1, num_verts)] * 3 + 1];
-			left_x = vertices[indices[left_indices_index] * 3];
-			right_x = vertices[indices[right_indices_index] * 3];
+			current_x = vertices[indices[indices_index] * num_attributes];
+			current_y = vertices[indices[indices_index] * num_attributes + 1];
+			prev_x = vertices[indices[constrain(indices_index - 1, num_verts)] * num_attributes];
+			prev_y = vertices[indices[constrain(indices_index - 1, num_verts)] * num_attributes + 1];
+			next_x = vertices[indices[constrain(indices_index + 1, num_verts)] * num_attributes];
+			next_y = vertices[indices[constrain(indices_index + 1, num_verts)] * num_attributes + 1];
+			left_x = vertices[indices[left_indices_index] * num_attributes];
+			right_x = vertices[indices[right_indices_index] * num_attributes];
 
 			if(current_x > left_x && current_x < prev_x && current_x < next_x) {
 				GLfloat prev_theta = std::atan2(prev_y - current_y, prev_x - current_x);
 				GLfloat next_theta = std::atan2(next_y - current_y, next_x - current_x);
-				GLfloat theta = std::atan2(vertices[indices[current->left->indices_index] * 3 + 1] - current_y, vertices[indices[current->left->indices_index] * 3] - current_x);
+				GLfloat theta = std::atan2(vertices[indices[current->left->indices_index] * num_attributes + 1] - current_y, vertices[indices[current->left->indices_index] * num_attributes] - current_x);
 
 				if(prev_y > next_y ? (theta > prev_theta || theta < next_theta) : (prev_theta < theta && theta < next_theta)) {
 					// TODO: run new iterations
@@ -189,7 +189,7 @@ std::vector<std::vector<int>> partition(GLfloat *vertices, int &total_verts) {
 			} else if(current_x < right_x && current_x > prev_x && current_x > next_x) {
 				GLfloat prev_theta = std::atan2(prev_y - current_y, prev_x - current_x);
 				GLfloat next_theta = std::atan2(next_y - current_y, next_x - current_x);
-				GLfloat theta = std::atan2(vertices[indices[current->right->indices_index] * 3 + 1] - current_y, vertices[indices[current->right->indices_index] * 3] - current_x);
+				GLfloat theta = std::atan2(vertices[indices[current->right->indices_index] * num_attributes + 1] - current_y, vertices[indices[current->right->indices_index] * num_attributes] - current_x);
 
 				DEBUG("THETA (previous, current, next): " << prev_theta << ", " << theta << ", " << next_theta);
 
@@ -232,7 +232,7 @@ std::vector<std::vector<int>> partition(GLfloat *vertices, int &total_verts) {
 }
 
 // Divide a y-monotone polygon partition into triangles.
-void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &indices_index) {
+void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &indices_index, int num_attributes) {
 	int num_verts = indices.size();
 
 #ifdef DEBUG_MODE
@@ -249,9 +249,9 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 	// TODO: check if these are always the first and last vertices
 	for(int i = 1; i < num_verts; ++i) {
 		// Find leftmost and rightmost vertices
-		if(data.vertices[indices[i] * 3] < data.vertices[indices[left_index] * 3])
+		if(data.vertices[indices[i] * num_attributes] < data.vertices[indices[left_index] * num_attributes])
 			left_index = i;
-		else if(data.vertices[indices[i] * 3] > data.vertices[indices[right_index] * 3])
+		else if(data.vertices[indices[i] * num_attributes] > data.vertices[indices[right_index] * num_attributes])
 			right_index = i;
 	}
 
@@ -265,7 +265,7 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 	// Sweep through vertices from left to right and triangulate each monotone polygon
 	for(int i = 0; i < num_verts; ++i) {
 		// Move to next vertex to the right to analyze
-		if((data.vertices[indices[constrain(top_index + 1, num_verts)] * 3] < data.vertices[indices[constrain(bottom_index - 1, num_verts)] * 3] || bottom_index == right_index) && top_index != right_index) {
+		if((data.vertices[indices[constrain(top_index + 1, num_verts)] * num_attributes] < data.vertices[indices[constrain(bottom_index - 1, num_verts)] * num_attributes] || bottom_index == right_index) && top_index != right_index) {
 			// Checks if the next top vertex is to the left of the next bottom vertex or bottom vertex is the rightmost vertex. Evaluates to false if the top vertex is the rightmost vertex.
 			// Moves the top vertex rightwards (clockwise)
 			top_index = constrain(top_index + 1, num_verts);
@@ -310,7 +310,7 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 
 					// Add triangle of fan to indices
 					data.indices[indices_index++] = indices[current];
-					if(data.vertices[indices[vert_a] * 3 + 1] < data.vertices[indices[vert_b] * 3 + 1]) { // If first vertex is to the left of the second
+					if(data.vertices[indices[vert_a] * num_attributes + 1] < data.vertices[indices[vert_b] * num_attributes + 1]) { // If first vertex is to the left of the second
 						data.indices[indices_index++] = indices[vert_a];
 						data.indices[indices_index++] = indices[vert_b];
 					} else {
@@ -318,7 +318,7 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 						data.indices[indices_index++] = indices[vert_a];
 					}
 
-					DEBUG("\tResultant indices: " << data.indices[indices_index - 3] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
+					DEBUG("\tResultant indices: " << data.indices[indices_index - num_attributes] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
 				}
 #ifdef DEBUG_MODE
 				str = "";
@@ -333,8 +333,8 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 				int current_index = indices[constrain(current, num_verts)];
 				DEBUG("\tAngle segment: (" << prev_prev_index << ", " << prev_index << ", " << current_index << ")");
 
-				GLfloat prev_theta = std::atan2(data.vertices[prev_prev_index * 3 + 1] - data.vertices[prev_index * 3 + 1], data.vertices[prev_prev_index * 3] - data.vertices[prev_index * 3]);
-				GLfloat current_theta = std::atan2(data.vertices[current_index * 3 + 1] - data.vertices[prev_index * 3 + 1], data.vertices[current_index * 3] - data.vertices[prev_index * 3]);
+				GLfloat prev_theta = std::atan2(data.vertices[prev_prev_index * num_attributes + 1] - data.vertices[prev_index * num_attributes + 1], data.vertices[prev_prev_index * num_attributes] - data.vertices[prev_index * num_attributes]);
+				GLfloat current_theta = std::atan2(data.vertices[current_index * num_attributes + 1] - data.vertices[prev_index * num_attributes + 1], data.vertices[current_index * num_attributes] - data.vertices[prev_index * num_attributes]);
 
 				if(current == top_index) { // Ear on top
 					GLfloat net_theta = constrain(current_theta - prev_theta, 2 * boa::PI);
@@ -346,7 +346,7 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 						remaining_vertices.pop_back();
 						data.indices[indices_index] = indices[remaining_vertices.back()];
 						indices_index += 2;
-						DEBUG("\tResultant indices: " << data.indices[indices_index - 3] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
+						DEBUG("\tResultant indices: " << data.indices[indices_index - num_attributes] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
 					}
 				} else if(current == bottom_index) { // Ear on bottom
 					GLfloat net_theta = constrain(prev_theta - current_theta, 2 * boa::PI);
@@ -357,7 +357,7 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 						data.indices[indices_index++] = indices[remaining_vertices.back()];
 						remaining_vertices.pop_back();
 						data.indices[indices_index++] = indices[remaining_vertices.back()];
-						DEBUG("\tResultant indices: " << data.indices[indices_index - 3] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
+						DEBUG("\tResultant indices: " << data.indices[indices_index - num_attributes] << ", " << data.indices[indices_index - 2] << ", " << data.indices[indices_index - 1]);
 					}
 				}
 			}
@@ -379,17 +379,21 @@ void triangulate(GLData &data, std::vector<int> indices, int &start_index, int &
 	start_index += num_verts;
 }
 
-GLData gen_gl_data(Vertices vertices) {
+GLData gen_gl_data(Vertices vertices, std::vector<glm::vec3> colors) {
 	GLData data;
 	data.num_verts = vertices.size();
 	data.num_elements = (vertices.size() - 2) * 3;
+	int num_attributes = 6;
 
-	data.vertices = new GLfloat[data.num_verts * 3];
+	data.vertices = new GLfloat[data.num_verts * num_attributes];
 	for(int i = 0; i < data.num_verts; ++i) {
 		// Format vertices for OpenGL
-		data.vertices[(i)* 3] = vertices[i].x;
-		data.vertices[(i)* 3 + 1] = vertices[i].y;
-		data.vertices[(i)* 3 + 2] = 0.0f;
+		data.vertices[(i)* num_attributes] = vertices[i].x;
+		data.vertices[(i)* num_attributes + 1] = vertices[i].y;
+		data.vertices[(i)* num_attributes + 2] = 0.0f;
+		data.vertices[(i)* num_attributes + 3] = colors[i][0];
+		data.vertices[(i)* num_attributes + 4] = colors[i][1];
+		data.vertices[(i)* num_attributes + 5] = colors[i][2];
 	}
 
 	data.indices = new GLuint[data.num_elements];
@@ -397,12 +401,12 @@ GLData gen_gl_data(Vertices vertices) {
 	int index = 0;
 
 	// Divide polygon into y-monotone partitions and triangulate each partition
-	std::vector<std::vector<int>> partitions = partition(data.vertices, data.num_verts);
+	std::vector<std::vector<int>> partitions = partition(data.vertices, data.num_verts, num_attributes);
 	for(std::vector<int> indices : partitions) {
-		triangulate(data, indices, index, indices_index);
+		triangulate(data, indices, index, indices_index, num_attributes);
 	}
 
-	data.verts_size = sizeof(GLfloat) * data.num_verts * 3;
+	data.verts_size = sizeof(GLfloat) * data.num_verts * num_attributes;
 	data.indices_size = sizeof(GLint) * data.num_elements;
 
 #ifdef DEBUG_MODE

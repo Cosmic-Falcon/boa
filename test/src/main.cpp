@@ -18,17 +18,18 @@ void key_parse(); // Act on key presses
 
 int main() {
 	adder::Polygon poly({{0, 0}, {144, 0}, {144, -72}, {72, -72}, {120, -48}, {48, -12}, {24, -24}, {72, -48}, {24 ,-72}, {0, -72}}, {256, 128});
+	std::vector<glm::vec3> colors = {{1.0, 0.0, 0.5}, {1.0, 0.0, 0.5}, {1.0, 0.0, 0.5}, {1.0, 0.0, 0.5}, {1.0, 0.0, 0.5}, {1.0, 0.0, 0.5}, {1.0, 0.0, 0.5}, {1.0, 0.0, 0.5}, {1.0, 0.0, 0.5}, {1.0, 0.0, 0.5}};
 	//poly.rotate(2*adder::PI/3, poly.get_pos());
 	adder::Body body(100, 100, -.1, poly);
 
 	boa::init(3, 3, GL_FALSE);
-	boa::GLData poly_gl_data = boa::gen_gl_data(poly.vertices());
+	boa::GLData poly_gl_data = boa::gen_gl_data(poly.vertices(), colors);
 	GLFWwindow* window = boa::create_window(640, 480, "BOA TEST");
 	glfwSetKeyCallback(window, key_callback);
 
 	glEnable(GL_DEPTH_TEST);
 	glClearColor(0.2, 0.5, 1.0, 0.0);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Outline mode
 
 	GLuint vertex_shader = boa::compile_shader("res/shaders/shader.vert", GL_VERTEX_SHADER);
 	GLuint fragment_shader = boa::compile_shader("res/shaders/shader.frag", GL_FRAGMENT_SHADER);
@@ -53,8 +54,10 @@ int main() {
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glBufferData(GL_ARRAY_BUFFER, poly_gl_data.verts_size, poly_gl_data.vertices, GL_STATIC_DRAW);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
 	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(1);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, poly_gl_data.indices_size, poly_gl_data.indices, GL_STATIC_DRAW);
