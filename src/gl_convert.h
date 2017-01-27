@@ -25,6 +25,7 @@ struct GLData {
 
 	int num_verts;
 	int num_elements;
+	int num_attributes;
 	int verts_size;
 	int indices_size;
 };
