@@ -17,14 +17,16 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 void key_parse(); // Act on key presses
 
 int main() {
-	//std::cout << __PRETTY_FUNCTION__ << std::endl;
 	adder::Polygon poly({{0, 0}, {144, 0}, {144, -72}, {72, -72}, {120, -48}, {48, -12}, {24, -24}, {72, -48}, {24 ,-72}, {0, -72}}, {256, 128});
-	std::vector<glm::vec3> colors = {{0.2, 0.0, 0.8}, {0.2, 0.0, 0.8}, {0.2, 0.0, 0.8}, {1.0, 0.0, 0.8}, {1.0, 0.0, 0.8}, {1.0, 0.0, 0.8}, {1.0, 0.0, 0.8}, {1.0, 0.0, 0.8}, {1.0, 0.0, 0.8}, {1.0, 0.0, 0.8}};
+	//std::vector<glm::vec3> colors = {{0.2, 0.0, 0.8}, {0.2, 0.0, 0.8}, {0.2, 0.0, 0.8}, {1.0, 0.0, 0.8}, {1.0, 0.0, 0.8}, {1.0, 0.0, 0.8}, {1.0, 0.0, 0.8}, {1.0, 0.0, 0.8}, {1.0, 0.0, 0.8}, {1.0, 0.0, 0.8}};
+	std::vector<std::vector<GLfloat>> colors_part_1 = {{0.2, 0.0}, {0.2, 0.0}, {0.2, 0.0}, {1.0, 0.0}, {1.0, 0.0}, {1.0, 0.0}, {1.0, 0.0}, {1.0, 0.0}, {1.0, 0.0}, {1.0, 0.0}};
+	std::vector<std::vector<GLfloat>> colors_part_2 = {{0.8}, {0.8}, {0.8}, {0.8}, {0.8}, {0.8}, {0.8}, {0.8}, {0.8}, {0.8}};
+	std::vector<std::vector<std::vector<GLfloat>>> attributes = {colors_part_1, colors_part_2};
 	//poly.rotate(2*adder::PI/3, poly.get_pos());
 	adder::Body body(100, 100, -.1, poly);
 
 	boa::init(3, 3, GL_FALSE);
-	boa::GLData poly_gl_data = boa::gen_gl_data(poly.vertices(), colors);
+	boa::GLData poly_gl_data = boa::GLData::gen_gl_data(poly.vertices(), attributes);
 	GLFWwindow* window = boa::create_window(640, 480, "BOA TEST");
 	glfwSetKeyCallback(window, key_callback);
 
@@ -127,10 +129,10 @@ void key_parse() {
 	if(keys[GLFW_KEY_W]) {
 		camera_y += 4;
 	} if(keys[GLFW_KEY_A]) {
-		camera_x -= 4;
+		camera_x += 4;
 	} if(keys[GLFW_KEY_S]) {
 		camera_y -= 4;
 	} if(keys[GLFW_KEY_D]) {
-		camera_x += 4;
+		camera_x -= 4;
 	}
 }

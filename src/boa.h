@@ -14,6 +14,6 @@
 
 #include "boa_global.h"
 #include "boa_fns.h"
-#include "gl_convert.h"
+#include "gl_data.h"
 
 #endif // BOA_H
